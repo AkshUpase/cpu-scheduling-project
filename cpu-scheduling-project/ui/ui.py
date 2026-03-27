@@ -15,7 +15,7 @@ TEXT     = "#e6edf3"
 SUBTEXT  = "#8b949e"
 GREEN    = "#4ade80"
 BLUE     = "#60a5fa"
-
+#this is the code for color
 PROCESS_COLORS = ["#00d4aa","#7c3aed","#f59e0b","#f87171",
                   "#4ade80","#60a5fa","#f472b6","#fb923c",
                   "#34d399","#a78bfa"]
