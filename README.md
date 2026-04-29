@@ -117,3 +117,16 @@ gcc src/main.c src/fcfs.c src/input.c src/SJF.c src/round_robin.c src/priority_s
 Open-source for educational purposes.
 
 ⭐ If you found this project useful, consider giving it a star!
+
+
+---
+
+## 🎯 End-Sem Review Additions
+
+For final evaluation preparation, refer to:
+
+- `endsem_upgrade_plan.md` → prioritized upgrade checklist and one-night execution strategy.
+- `project_guide.md` → architecture, OS concept depth, feasibility matrix, and viva prep.
+- `demo.md` → ready-to-use 8–10 minute live demo script.
+
+These documents are designed to clearly show **mid-sem to end-sem progression** and help differentiate your submission during review.
