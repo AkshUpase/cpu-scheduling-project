@@ -647,6 +647,82 @@ def disk_clook(requests, head):
 def generate_random_processes(n, max_arrival=10, max_burst=10):
     return [(i+1, random.randint(0, max_arrival), random.randint(1, max_burst), random.randint(1, 3)) for i in range(n)]
 
+
+# ── New utility functions ──────────────────────────────────────────────────────
+
+_MIN_PRIORITY = 1   # lowest numeric priority value used in aging
+
+def context_switches(gantt):
+    """Count context switches — each time the running PID changes in the Gantt."""
+    if len(gantt) <= 1:
+        return 0
+    return sum(1 for i in range(1, len(gantt)) if gantt[i][0] != gantt[i - 1][0])
+
+
+def response_times(processes, gantt):
+    """Response time = time of first CPU burst start minus arrival time, per process."""
+    first_start = {}
+    for pid, start, end in gantt:
+        if pid not in first_start:
+            first_start[pid] = start
+    return {p[0]: max(0, first_start.get(p[0], p[1]) - p[1]) for p in processes}
+
+
+def priority_scheduling_aging(processes, age_rate=1):
+    """
+    Priority Scheduling with Aging (anti-starvation).
+    Lower priority value = higher priority.
+    Every time a process is skipped, its effective priority improves by age_rate.
+    Returns (result, gantt, aging_log) where aging_log = [(pid, time, new_pri), ...].
+    """
+    effective_pri = {p[0]: p[3] for p in processes}
+    time, result, gantt, aging_log = 0, [], [], []
+    remaining = [list(p) for p in processes]
+
+    while remaining:
+        available = [p for p in remaining if p[1] <= time]
+        if not available:
+            time = min(p[1] for p in remaining)
+            available = [p for p in remaining if p[1] <= time]
+
+        chosen = min(available, key=lambda x: (effective_pri[x[0]], x[1]))
+        remaining.remove(chosen)
+        pid, arrival, burst = chosen[0], chosen[1], chosen[2]
+        if time < arrival:
+            time = arrival
+        wt = time - arrival
+
+        # Age all other already-arrived, not-yet-finished processes
+        for p in remaining:
+            if p[1] <= time:
+                old = effective_pri[p[0]]
+                effective_pri[p[0]] = max(_MIN_PRIORITY, old - age_rate)
+                if effective_pri[p[0]] < old:
+                    aging_log.append((p[0], time, effective_pri[p[0]]))
+
+        gantt.append((pid, time, time + burst))
+        time += burst
+        result.append((pid, arrival, burst, wt, wt + burst))
+
+    return result, gantt, aging_log
+
+
+def throughput_vs_quantum(processes, quantum_range=None):
+    """Run RR for different quantum values. Returns [(quantum, avg_wt, avg_tat), ...]."""
+    if quantum_range is None:
+        quantum_range = range(1, 11)
+    out = []
+    for q in quantum_range:
+        try:
+            res, _ = round_robin(processes, q)
+            avg_wt = sum(r[3] for r in res) / len(res)
+            avg_tat = sum(r[4] for r in res) / len(res)
+            out.append((q, avg_wt, avg_tat))
+        except Exception:
+            pass
+    return out
+
+
 def compare_cpu_algorithms(processes, quantum=2):
     """Run all CPU algorithms and return comparison data."""
     results = {}
@@ -658,12 +734,23 @@ def compare_cpu_algorithms(processes, quantum=2):
         'Priority': lambda: priority_scheduling(processes),
         'MLFQ': lambda: mlfq(processes),
     }
+    total_burst = sum(p[2] for p in processes)
     for name, func in algos.items():
         try:
             res, gantt = func()
             avg_wt = sum(r[3] for r in res) / len(res)
             avg_tat = sum(r[4] for r in res) / len(res)
-            results[name] = {'result': res, 'gantt': gantt, 'avg_wt': avg_wt, 'avg_tat': avg_tat}
+            makespan = max(r[1] + r[4] for r in res) if res else 1
+            ctx_sw = context_switches(gantt)
+            throughput = round(len(res) / makespan, 3) if makespan else 0
+            cpu_util = round(total_burst / makespan * 100, 1) if makespan else 0
+            results[name] = {
+                'result': res, 'gantt': gantt,
+                'avg_wt': avg_wt, 'avg_tat': avg_tat,
+                'context_switches': ctx_sw,
+                'throughput': throughput,
+                'cpu_util': cpu_util,
+            }
         except Exception:
             pass
     return results

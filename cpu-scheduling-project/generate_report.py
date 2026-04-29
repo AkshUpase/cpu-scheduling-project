@@ -804,5 +804,109 @@ def generate_report():
     return output_path
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PER-SIMULATION REPORT  (called from the UI's "Export PDF" button)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def generate_simulation_report(result, processes, gantt, stats, output_path):
+    """
+    Generate a concise PDF for a single simulation run.
+
+    Parameters
+    ----------
+    result      : list of (pid, arrival, burst, waiting, turnaround)
+    processes   : list of (pid, arrival, burst, priority)
+    gantt       : list of (pid, start, end) — the Gantt chart segments
+    stats       : dict with keys: algo, avg_wt, avg_tat,
+                  context_switches, cpu_util, throughput
+    output_path : str — destination file path
+    """
+    pdf = ProjectReport()
+    pdf.alias_nb_pages()
+    pdf.add_page()
+
+    # ── Title ─────────────────────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(0, 100, 80)
+    pdf.cell(0, 12, "CPU Scheduling - Simulation Report",
+             new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.set_font("Helvetica", "", 13)
+    pdf.set_text_color(100, 60, 180)
+    algo_display = stats.get("algo", "").upper()
+    pdf.cell(0, 8, f"Algorithm: {algo_display}",
+             new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.ln(4)
+    pdf.set_draw_color(0, 212, 170)
+    pdf.set_line_width(0.8)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(6)
+
+    # ── Metrics summary ───────────────────────────────────────────────────────
+    pdf.chapter_title("Performance Metrics")
+    metrics = [
+        ["Average Waiting Time",    f"{stats.get('avg_wt', 0):.2f}  units"],
+        ["Average Turnaround Time", f"{stats.get('avg_tat', 0):.2f}  units"],
+        ["CPU Utilization",         f"{stats.get('cpu_util', 0):.1f} %"],
+        ["Context Switches",        str(stats.get('context_switches', 0))],
+        ["Throughput",              f"{stats.get('throughput', 0)} processes/unit"],
+    ]
+    pdf.add_table(["Metric", "Value"], metrics, [120, 70])
+
+    # ── Input processes ───────────────────────────────────────────────────────
+    pdf.chapter_title("Input Processes")
+    proc_rows = [[f"P{p[0]}", p[1], p[2], p[3]] for p in processes]
+    pdf.add_table(["PID", "Arrival", "Burst", "Priority"], proc_rows,
+                  [40, 50, 50, 50])
+
+    # ── Results table ─────────────────────────────────────────────────────────
+    pdf.chapter_title("Scheduling Results")
+    res_rows = []
+    for r in result:
+        pid, at, bt, wt, tat = r
+        rt_ratio = f"{tat / bt:.2f}" if bt else "–"
+        res_rows.append([f"P{pid}", at, bt, wt, tat, rt_ratio])
+    pdf.add_table(
+        ["PID", "Arrival", "Burst", "Waiting", "Turnaround", "Resp Ratio"],
+        res_rows,
+        [30, 32, 32, 32, 38, 36],
+    )
+
+    # ── Gantt chart (text representation) ────────────────────────────────────
+    pdf.chapter_title("Gantt Chart (text)")
+    pdf.set_font("Courier", "", 8)
+    pdf.set_text_color(30, 30, 30)
+    # Draw each Gantt segment as a fixed-width cell; wrap to a new row when the
+    # page width would be exceeded (usable width ≈ 190 mm at default margins).
+    cell_w = 18
+    max_cells_per_row = int(190 / cell_w)
+    for i, (pid, start, end) in enumerate(gantt):
+        if i > 0 and i % max_cells_per_row == 0:
+            pdf.ln(7)   # start a new row of cells
+        label = f"P{pid}({start}-{end})"
+        pdf.cell(cell_w, 6, label[:cell_w], border=1, align="C")
+    pdf.ln(8)
+    pdf.ln(4)
+
+    # ── Analysis note ──────────────────────────────────────────────────────────
+    pdf.chapter_title("Analysis")
+    if result:
+        best_p  = min(result, key=lambda r: r[3])
+        worst_p = max(result, key=lambda r: r[3])
+        analysis = (
+            f"Algorithm '{algo_display}' scheduled {len(result)} processes. "
+            f"Best waiting time: P{best_p[0]} ({best_p[3]} units). "
+            f"Worst waiting time: P{worst_p[0]} ({worst_p[3]} units). "
+            f"Context switches: {stats.get('context_switches', 0)} "
+            f"(lower = less overhead). "
+            f"CPU utilization: {stats.get('cpu_util', 0):.1f}% "
+            f"(higher = more efficient). "
+            f"Throughput: {stats.get('throughput', 0)} processes per time unit."
+        )
+        pdf.body_text(analysis)
+
+    pdf.output(output_path)
+    return output_path
+
+
 if __name__ == "__main__":
     generate_report()
