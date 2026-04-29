@@ -70,8 +70,6 @@ def srtf(processes):
             continue
 
         if prev_pid != pids[idx]:
-            if gantt and gantt[-1][0] == pids[idx]:
-                pass
             gantt.append((pids[idx], time, time + 1))
         else:
             gantt[-1] = (gantt[-1][0], gantt[-1][1], time + 1)
@@ -708,7 +706,7 @@ def priority_scheduling_aging(processes, age_rate=1):
 
 
 def throughput_vs_quantum(processes, quantum_range=None):
-    """Run RR for different quantum values. Returns [(quantum, avg_wt, avg_tat), ...]."""
+    """Run RR for different quantum values. Returns [(quantum, avg_wt, avg_tat, throughput), ...]."""
     if quantum_range is None:
         quantum_range = range(1, 11)
     out = []
@@ -717,9 +715,11 @@ def throughput_vs_quantum(processes, quantum_range=None):
             res, _ = round_robin(processes, q)
             avg_wt = sum(r[3] for r in res) / len(res)
             avg_tat = sum(r[4] for r in res) / len(res)
-            out.append((q, avg_wt, avg_tat))
-        except Exception:
-            pass
+            makespan = max(r[1] + r[4] for r in res) if res else 1
+            tput = (len(res) / makespan) if makespan else 0
+            out.append((q, avg_wt, avg_tat, round(tput, 3)))
+        except Exception as e:
+            out.append((q, None, None, None, f"error: {e}"))
     return out
 
 
@@ -744,13 +744,25 @@ def compare_cpu_algorithms(processes, quantum=2):
             ctx_sw = context_switches(gantt)
             throughput = round(len(res) / makespan, 3) if makespan else 0
             cpu_util = round(total_burst / makespan * 100, 1) if makespan else 0
+            rt_map = response_times(processes, gantt)
+            avg_rt = (sum(rt_map.values()) / len(rt_map)) if rt_map else 0
             results[name] = {
                 'result': res, 'gantt': gantt,
-                'avg_wt': avg_wt, 'avg_tat': avg_tat,
+                'avg_wt': avg_wt, 'avg_tat': avg_tat, 'avg_rt': avg_rt,
                 'context_switches': ctx_sw,
                 'throughput': throughput,
                 'cpu_util': cpu_util,
             }
-        except Exception:
-            pass
+        except Exception as e:
+            results[name] = {
+                "error": str(e),
+                "result": [],
+                "gantt": [],
+                "avg_wt": float("inf"),
+                "avg_tat": float("inf"),
+                "avg_rt": float("inf"),
+                "context_switches": float("inf"),
+                "throughput": 0,
+                "cpu_util": 0,
+            }
     return results
