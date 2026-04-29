@@ -431,7 +431,7 @@ class CPUTab:
             return
         self._anim_step += 1
         self._draw_gantt_steps(self._anim_step)
-        delay = int(1100 - self.speed_slider.get() * 100)   # 100 ms – 1 000 ms
+        delay = int(1100 - self.speed_slider.get() * 100)   # speed=1 → 1000 ms, speed=10 → 100 ms
         self._anim_id = self.gantt_canvas.after(delay, self._anim_tick)
 
     def _step_fwd(self):
@@ -467,6 +467,9 @@ class CPUTab:
         """
         Horizontal grid: each row = one process, each cell = one time unit.
         Yellow = Ready (arrived, waiting),  Green = Running,  Grey = Done.
+
+        State colours are determined in a single forward pass (O(n + m) where
+        n = number of processes and m = total time), then rendered per process.
         """
         c = self.state_canvas
         c.delete("all")
@@ -484,38 +487,41 @@ class CPUTab:
         scale  = (W - pad_x - 4) / total_time
         row_h  = max(4, min(16, (H - 4) / n))
 
-        # Build a running_map: time -> pid
-        running_map = {}
+        # Build running_map and finish_map in a single pass each
+        running_map: dict[int, int] = {}   # time → pid
         for pid, start, end in gantt:
             for t in range(start, end):
                 running_map[t] = pid
 
-        # Build finish_map: pid -> finish time
-        finish_map = {}
+        finish_map: dict[int, int] = {}    # pid → finish time
         for r in result:
             finish_map[r[0]] = r[1] + r[4]   # arrival + tat
 
+        # Build state grid: state_grid[i][t] = fill colour (one pass per process)
+        pid_arrival = {p[0]: p[1] for p in processes}
         for i, (pid, arrival, burst, pri) in enumerate(processes):
             y = 2 + i * row_h
             col = COLORS[i % len(COLORS)]
             c.create_text(pad_x - 3, y + row_h / 2,
                           text=f"P{pid}", font=("Consolas", 7, "bold"),
                           fill=col, anchor="e")
+            finish = finish_map.get(pid, total_time)
             for t in range(total_time):
                 if t < arrival:
                     fill = BG
                 elif running_map.get(t) == pid:
                     fill = "#4ade80"   # running — green
-                elif finish_map.get(pid, total_time) <= t:
+                elif finish <= t:
                     fill = "#8b949e"   # done — grey
                 else:
                     fill = "#f59e0b"   # ready — amber
                 x0 = pad_x + t * scale
                 x1 = pad_x + (t + 1) * scale
+                # min-width of 1px ensures visibility at very fine time scales
                 c.create_rectangle(x0, y, max(x0 + 1, x1),
                                    y + row_h - 1, fill=fill, outline="")
 
-        # Legend text at top-right
+        # Legend
         for j, (label, col) in enumerate([("Ready", "#f59e0b"),
                                            ("Running", "#4ade80"),
                                            ("Done", "#8b949e")]):

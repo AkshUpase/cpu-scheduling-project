@@ -875,9 +875,13 @@ def generate_simulation_report(result, processes, gantt, stats, output_path):
     pdf.chapter_title("Gantt Chart (text)")
     pdf.set_font("Courier", "", 8)
     pdf.set_text_color(30, 30, 30)
-    # Draw each block as a cell to avoid word-wrap issues
+    # Draw each Gantt segment as a fixed-width cell; wrap to a new row when the
+    # page width would be exceeded (usable width ≈ 190 mm at default margins).
     cell_w = 18
-    for pid, start, end in gantt:
+    max_cells_per_row = int(190 / cell_w)
+    for i, (pid, start, end) in enumerate(gantt):
+        if i > 0 and i % max_cells_per_row == 0:
+            pdf.ln(7)   # start a new row of cells
         label = f"P{pid}({start}-{end})"
         pdf.cell(cell_w, 6, label[:cell_w], border=1, align="C")
     pdf.ln(8)

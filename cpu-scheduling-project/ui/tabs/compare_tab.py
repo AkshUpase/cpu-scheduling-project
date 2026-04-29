@@ -133,8 +133,10 @@ class CompareTab:
             val_str = str(int(val)) if integer_vals else f"{val:.2f}"
             c.create_text((x0 + x1) / 2, y0 - 7,
                           text=val_str, font=("Consolas", 7, "bold"), fill=TEXT)
-            # Abbreviated name
-            short = name.replace("Round Robin", "RR").replace("Priority", "Pri")
+            # Abbreviated name (full names are too wide for narrow bars)
+            _ABBREV = {"Round Robin": "RR", "Priority": "Pri",
+                       "Multilevel Queue": "MLQ"}
+            short = _ABBREV.get(name, name)
             c.create_text((x0 + x1) / 2, H - pad_y - 8,
                           text=short, font=("Consolas", 7), fill=SUBTEXT)
 

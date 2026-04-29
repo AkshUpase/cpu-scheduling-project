@@ -650,6 +650,8 @@ def generate_random_processes(n, max_arrival=10, max_burst=10):
 
 # ── New utility functions ──────────────────────────────────────────────────────
 
+_MIN_PRIORITY = 1   # lowest numeric priority value used in aging
+
 def context_switches(gantt):
     """Count context switches — each time the running PID changes in the Gantt."""
     if len(gantt) <= 1:
@@ -694,7 +696,7 @@ def priority_scheduling_aging(processes, age_rate=1):
         for p in remaining:
             if p[1] <= time:
                 old = effective_pri[p[0]]
-                effective_pri[p[0]] = max(1, old - age_rate)
+                effective_pri[p[0]] = max(_MIN_PRIORITY, old - age_rate)
                 if effective_pri[p[0]] < old:
                     aging_log.append((p[0], time, effective_pri[p[0]]))
 
