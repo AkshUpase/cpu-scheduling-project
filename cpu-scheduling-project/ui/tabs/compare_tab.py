@@ -43,24 +43,34 @@ class CompareTab:
                        command=self._export).pack(side="left", padx=4)
 
         # Analysis banner
-        self.analysis = ctk.CTkLabel(main, text="", font=ctk.CTkFont("Consolas",12),
+        self.analysis = ctk.CTkLabel(main, text="", font=ctk.CTkFont("Consolas", 11),
                                       text_color="#4ade80", wraplength=900)
-        self.analysis.pack(fill="x", padx=16, pady=(8,0))
+        self.analysis.pack(fill="x", padx=16, pady=(8, 0))
 
-        # Chart canvas — bar chart
-        ctk.CTkLabel(main, text="AVERAGE WAITING TIME COMPARISON",
-                     font=ctk.CTkFont("Consolas",10,"bold"), text_color=ACCENT).pack(anchor="w", padx=16, pady=(12,2))
-        self.wt_canvas = Canvas(main, bg=CARD, height=180, highlightthickness=0)
-        self.wt_canvas.pack(fill="x", padx=16, pady=(0,4))
+        # ── Three bar charts ──────────────────────────────────────────────────
+        charts = ctk.CTkFrame(main, fg_color=BG)
+        charts.pack(fill="x", padx=16, pady=(8, 4))
+        charts.columnconfigure(0, weight=1)
+        charts.columnconfigure(1, weight=1)
+        charts.columnconfigure(2, weight=1)
 
-        ctk.CTkLabel(main, text="AVERAGE TURNAROUND TIME COMPARISON",
-                     font=ctk.CTkFont("Consolas",10,"bold"), text_color=ACCENT).pack(anchor="w", padx=16, pady=(8,2))
-        self.tat_canvas = Canvas(main, bg=CARD, height=180, highlightthickness=0)
-        self.tat_canvas.pack(fill="x", padx=16, pady=(0,4))
+        for col_idx, (title, attr) in enumerate([
+            ("AVG WAITING TIME",    "wt_canvas"),
+            ("AVG TURNAROUND TIME", "tat_canvas"),
+            ("CONTEXT SWITCHES",    "ctx_canvas"),
+        ]):
+            frame = ctk.CTkFrame(charts, fg_color=BG)
+            frame.grid(row=0, column=col_idx, padx=4, sticky="nsew")
+            ctk.CTkLabel(frame, text=title,
+                         font=ctk.CTkFont("Consolas", 9, "bold"),
+                         text_color=ACCENT).pack(anchor="w", pady=(0, 2))
+            canvas = Canvas(frame, bg=CARD, height=160, highlightthickness=0)
+            canvas.pack(fill="x")
+            setattr(self, attr, canvas)
 
         # Table
-        self.table_frame = ctk.CTkScrollableFrame(main, fg_color=CARD, height=150)
-        self.table_frame.pack(fill="both", expand=True, padx=16, pady=(4,12))
+        self.table_frame = ctk.CTkScrollableFrame(main, fg_color=CARD, height=160)
+        self.table_frame.pack(fill="both", expand=True, padx=16, pady=(4, 12))
 
         self.last_results = None
 
@@ -68,76 +78,117 @@ class CompareTab:
         try:
             n = int(self.n_entry.get())
             q = int(self.q_entry.get())
-        except:
+        except Exception:
             n, q = 6, 2
         procs = generate_random_processes(n)
         results = compare_cpu_algorithms(procs, q)
         self.last_results = results
 
-        if not results: return
+        if not results:
+            return
 
-        best_wt = min(results.items(), key=lambda x: x[1]['avg_wt'])
+        best_wt  = min(results.items(), key=lambda x: x[1]['avg_wt'])
         worst_wt = max(results.items(), key=lambda x: x[1]['avg_wt'])
         best_tat = min(results.items(), key=lambda x: x[1]['avg_tat'])
+        best_ctx = min(results.items(), key=lambda x: x[1]['context_switches'])
 
         self.analysis.configure(
-            text=f"🏆 Best Algorithm: {best_wt[0]} (Avg WT = {best_wt[1]['avg_wt']:.2f}) | "
-                 f"❌ Worst: {worst_wt[0]} (Avg WT = {worst_wt[1]['avg_wt']:.2f}) | "
-                 f"⚡ Lowest TAT: {best_tat[0]} ({best_tat[1]['avg_tat']:.2f})")
+            text=(f"🏆 Best WT: {best_wt[0]} ({best_wt[1]['avg_wt']:.2f})  |  "
+                  f"❌ Worst WT: {worst_wt[0]} ({worst_wt[1]['avg_wt']:.2f})  |  "
+                  f"⚡ Lowest TAT: {best_tat[0]} ({best_tat[1]['avg_tat']:.2f})  |  "
+                  f"🔄 Fewest Ctx-Sw: {best_ctx[0]} ({best_ctx[1]['context_switches']})"))
 
-        self._draw_bars(self.wt_canvas, {k: v['avg_wt'] for k, v in results.items()}, "WT")
-        self._draw_bars(self.tat_canvas, {k: v['avg_tat'] for k, v in results.items()}, "TAT")
+        self._draw_bars(self.wt_canvas,  {k: v['avg_wt']          for k, v in results.items()}, "WT")
+        self._draw_bars(self.tat_canvas, {k: v['avg_tat']          for k, v in results.items()}, "TAT")
+        self._draw_bars(self.ctx_canvas, {k: v['context_switches'] for k, v in results.items()},
+                        "Ctx-Sw", lower_is_better=True, integer_vals=True)
         self._draw_table(results)
 
-    def _draw_bars(self, canvas, data, label):
-        c = canvas; c.delete("all"); c.update_idletasks()
-        W = max(c.winfo_width(), 600)
-        H = 170
-        pad_x, pad_y = 60, 20
+    def _draw_bars(self, canvas, data, label,
+                   lower_is_better=True, integer_vals=False):
+        c = canvas
+        c.delete("all")
+        c.update_idletasks()
+        W = max(c.winfo_width(), 300)
+        H = 155
+        pad_x, pad_y = 10, 16
         n = len(data)
-        if n == 0: return
-        max_val = max(data.values()) or 1
-        bar_w = (W - 2*pad_x) / (n * 2)
-        best_key = min(data, key=data.get)
+        if n == 0:
+            return
+        max_val  = max(data.values()) or 1
+        bar_w    = (W - 2 * pad_x) / (n * 2)
+        best_key = min(data, key=data.get) if lower_is_better else max(data, key=data.get)
 
         for i, (name, val) in enumerate(data.items()):
-            x0 = pad_x + i * 2 * bar_w + bar_w * 0.5
-            bar_h = (val / max_val) * (H - 2*pad_y - 20)
-            y0 = H - pad_y - bar_h
-            y1 = H - pad_y
+            x0 = pad_x + i * 2 * bar_w + bar_w * 0.3
+            x1 = x0 + bar_w * 1.4
+            bh = (val / max_val) * (H - 2 * pad_y - 22)
+            y0 = H - pad_y - 22 - bh
+            y1 = H - pad_y - 22
             col = ALGO_COLORS.get(name, ACCENT)
             if name == best_key:
-                c.create_rectangle(x0-2, y0-2, x0+bar_w+2, y1+2, fill="#4ade80", outline="")
-            c.create_rectangle(x0, y0, x0+bar_w, y1, fill=col, outline="")
-            c.create_text(x0+bar_w/2, y0-8, text=f"{val:.2f}", font=("Consolas",8,"bold"), fill=TEXT)
-            c.create_text(x0+bar_w/2, y1+10, text=name, font=("Consolas",7), fill=SUBTEXT)
+                c.create_rectangle(x0 - 2, y0 - 2, x1 + 2, y1 + 2,
+                                   fill="#4ade80", outline="")
+            c.create_rectangle(x0, y0, x1, y1, fill=col, outline="")
+            val_str = str(int(val)) if integer_vals else f"{val:.2f}"
+            c.create_text((x0 + x1) / 2, y0 - 7,
+                          text=val_str, font=("Consolas", 7, "bold"), fill=TEXT)
+            # Abbreviated name
+            short = name.replace("Round Robin", "RR").replace("Priority", "Pri")
+            c.create_text((x0 + x1) / 2, H - pad_y - 8,
+                          text=short, font=("Consolas", 7), fill=SUBTEXT)
 
     def _draw_table(self, results):
-        for w in self.table_frame.winfo_children(): w.destroy()
+        for w in self.table_frame.winfo_children():
+            w.destroy()
         hdr = ctk.CTkFrame(self.table_frame, fg_color=PANEL)
-        hdr.pack(fill="x", pady=(0,4))
-        for col in ["Algorithm", "Avg WT", "Avg TAT", "Rating"]:
-            ctk.CTkLabel(hdr, text=col, font=ctk.CTkFont("Consolas",10,"bold"),
-                         text_color=ACCENT, width=150).pack(side="left", padx=4)
+        hdr.pack(fill="x", pady=(0, 4))
+        cols = ["Algorithm", "Avg WT", "Avg TAT", "Ctx-Sw", "Throughput", "CPU Util%", "Rating"]
+        widths = [130, 80, 80, 70, 90, 90, 100]
+        for col, w in zip(cols, widths):
+            ctk.CTkLabel(hdr, text=col,
+                         font=ctk.CTkFont("Consolas", 10, "bold"),
+                         text_color=ACCENT, width=w).pack(side="left", padx=2)
 
         best_key = min(results, key=lambda k: results[k]['avg_wt'])
         for name, data in sorted(results.items(), key=lambda x: x[1]['avg_wt']):
             row = ctk.CTkFrame(self.table_frame, fg_color=CARD)
             row.pack(fill="x", pady=1)
-            rating = "🏆 BEST" if name == best_key else "⭐ Good" if data['avg_wt'] < 5 else "⚠️ Slow"
+            rating = ("🏆 BEST" if name == best_key
+                      else "⭐ Good" if data['avg_wt'] < 5
+                      else "⚠️ Slow")
             col = "#4ade80" if name == best_key else SUBTEXT
-            for val in [name, f"{data['avg_wt']:.2f}", f"{data['avg_tat']:.2f}", rating]:
-                ctk.CTkLabel(row, text=str(val), font=ctk.CTkFont("Consolas",10),
-                             text_color=col, width=150).pack(side="left", padx=4)
+            row_vals = [
+                name,
+                f"{data['avg_wt']:.2f}",
+                f"{data['avg_tat']:.2f}",
+                str(data.get('context_switches', '–')),
+                str(data.get('throughput', '–')),
+                f"{data.get('cpu_util', 0):.1f}%",
+                rating,
+            ]
+            for val, w in zip(row_vals, widths):
+                ctk.CTkLabel(row, text=str(val),
+                             font=ctk.CTkFont("Consolas", 10),
+                             text_color=col, width=w).pack(side="left", padx=2)
 
     def _export(self):
         if not self.last_results:
-            messagebox.showinfo("No Data", "Run comparison first."); return
+            messagebox.showinfo("No Data", "Run comparison first.")
+            return
         path = os.path.join(os.path.dirname(__file__), "..", "..", "output", "comparison.csv")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["Algorithm", "Avg Waiting Time", "Avg Turnaround Time"])
+            w.writerow(["Algorithm", "Avg WT", "Avg TAT", "Context Switches",
+                        "Throughput", "CPU Util%"])
             for name, data in self.last_results.items():
-                w.writerow([name, f"{data['avg_wt']:.2f}", f"{data['avg_tat']:.2f}"])
+                w.writerow([
+                    name,
+                    f"{data['avg_wt']:.2f}",
+                    f"{data['avg_tat']:.2f}",
+                    data.get('context_switches', ''),
+                    data.get('throughput', ''),
+                    f"{data.get('cpu_util', 0):.1f}",
+                ])
         messagebox.showinfo("Exported", f"Saved to {os.path.abspath(path)}")
