@@ -1,33 +1,51 @@
-# 🧠 CPU Scheduling Simulator (FCFS)
+# 🧠 OS Simulator — Advanced Edition
 
-A simple and interactive **CPU Scheduling Simulator** implemented in **C** (with optional Python UI), designed to demonstrate core **Operating System scheduling concepts** such as **First Come First Serve (FCFS)**.
+A **premium, interactive Operating System Simulator** with a dark-themed GUI, covering **CPU Scheduling, Memory Management, Deadlock Handling, and Disk Scheduling** — built with Python (CustomTkinter) and C.
 
----
-
-## 📌 Project Overview
-
-This project simulates how an operating system schedules processes using the **FCFS (First Come First Serve)** algorithm. It takes user input for processes and calculates:
-
-* Waiting Time (WT)
-* Turnaround Time (TAT)
-* Average Waiting Time
-* Average Turnaround Time
+> **Author:** Aksh Upase (SE Engineering)
 
 ---
 
 ## 🚀 Features
 
-* 📥 User input for multiple processes
-* ⏱️ FCFS Scheduling implementation
-* 📊 Displays process table with:
+### 🧠 CPU Scheduling (7 Algorithms)
+| Algorithm | Type |
+|---|---|
+| FCFS (First Come First Served) | Non-Preemptive |
+| SJF (Shortest Job First) | Non-Preemptive |
+| **SRTF (Shortest Remaining Time First)** | Preemptive ⭐ |
+| Round Robin | Preemptive |
+| Priority Scheduling | Non-Preemptive |
+| **Multilevel Queue** | Multi-Queue |
+| **MLFQ (Multilevel Feedback Queue)** | Adaptive ⭐ |
 
-  * Process ID
-  * Arrival Time
-  * Burst Time
-  * Waiting Time
-  * Turnaround Time
-* 📈 Calculates average performance metrics
-* 🖥️ Optional Python-based UI included
+### 💾 Memory Management
+- **Memory Allocation:** First Fit, Best Fit, Worst Fit, **Next Fit**
+- **Page Replacement:** FIFO, **LRU ⭐**, **Optimal ⭐**
+- Visual block allocation + step-by-step page table
+
+### ⚠️ Deadlock
+- **Banker's Algorithm ⭐** (Deadlock Avoidance) — with step-by-step safe sequence
+- **Deadlock Detection** — identifies deadlocked processes
+
+### 💽 Disk Scheduling (6 Algorithms)
+| Algorithm | Description |
+|---|---|
+| FCFS | Order of arrival |
+| SSTF | Nearest request first |
+| **SCAN (Elevator)** | Sweep + reverse |
+| **C-SCAN** | Circular sweep |
+| **LOOK** | SCAN without going to edges |
+| **C-LOOK** | C-SCAN without going to edges |
+
+### 🎨 Premium UI Features
+- 🌙 **Dark Mode** with custom color palette
+- 📊 **Comparison Mode** — compare all CPU algorithms side-by-side
+- 📈 **Gantt Charts** & **Seek Path Visualizations**
+- 🏆 **Auto-Analysis** — recommends best/worst algorithm
+- 🎲 **Random Test Case Generator**
+- 💾 **Export to CSV**
+- 📚 **Theory/Learn Section** — explains every algorithm with pros/cons
 
 ---
 
@@ -35,132 +53,67 @@ This project simulates how an operating system schedules processes using the **F
 
 ```
 cpu-scheduling-project/
-│
-├── src/
-│   ├── main.c          # Entry point of program
-│   ├── fcfs.c          # FCFS scheduling logic
-│   └── input.c         # Input & display functions
-│
+├── src/                    # C backend (original)
+│   ├── main.c
+│   ├── fcfs.c
+│   ├── SJF.c
+│   ├── round_robin.c
+│   ├── priority_sch.c
+│   └── input.c
 ├── include/
-│   └── scheduling.h    # Structure & function declarations
-│
-├── docs/
-│   └── methodology.txt # Project explanation
-│
+│   └── scheduling.h
+├── ui/                     # Python GUI (upgraded)
+│   ├── app.py              # ⭐ Main entry point
+│   ├── algorithms.py       # All algorithm implementations
+│   └── tabs/
+│       ├── cpu_tab.py      # CPU Scheduling tab
+│       ├── memory_tab.py   # Memory Management tab
+│       ├── deadlock_tab.py # Deadlock tab
+│       ├── disk_tab.py     # Disk Scheduling tab
+│       ├── compare_tab.py  # Algorithm Comparison tab
+│       └── learn_tab.py    # Theory/Learn tab
 ├── output/
-│   └── sample_output.txt
-│
-├── ui/
-│   ├── ui.py           # Python UI (optional)
-│   └── ui1.py
-│
-├── scheduler.exe       # Compiled executable
-└── makefile            # Build automation
+├── docs/
+└── scheduler.exe
 ```
 
 ---
 
-## ⚙️ How It Works
+## ⚙️ How to Run
 
-1. User enters number of processes
-2. Inputs arrival time and burst time
-3. FCFS algorithm schedules processes in order of arrival
-4. System computes:
-
-   * Waiting Time = Start Time − Arrival Time
-   * Turnaround Time = Waiting Time + Burst Time
-5. Final table and averages are displayed
-
----
-
-## 🧮 Algorithm Used
-
-### First Come First Serve (FCFS)
-
-* Processes are executed in the order they arrive
-* Non-preemptive scheduling
-* Simple but may cause **long waiting times**
-
----
-
-## 🛠️ Installation & Usage
-
-### 🔧 Compile (Linux / Mac / MinGW)
-
+### Prerequisites
 ```bash
-gcc src/main.c src/fcfs.c src/input.c -o scheduler
+pip install customtkinter matplotlib
 ```
 
-### ▶️ Run
-
+### Launch the App
 ```bash
-./scheduler
+cd cpu-scheduling-project/ui
+python app.py
 ```
 
-### 🪟 Windows (Executable)
-
-You can directly run:
-
-```
-scheduler.exe
-```
-
----
-
-## 💻 Sample Output
-
-```
-PID    AT    BT    WT    TAT
-1      0     5     0     5
-2      1     3     4     7
-3      2     8     6     14
-
-Average Waiting Time = 3.33
-Average Turnaround Time = 8.67
+### Compile C Backend (Optional)
+```bash
+gcc src/main.c src/fcfs.c src/input.c src/SJF.c src/round_robin.c src/priority_sch.c -o scheduler
 ```
 
 ---
 
-## 📚 Learning Outcomes
+## 📸 Tabs Overview
 
-* Understanding of CPU Scheduling Algorithms
-* Practical implementation of FCFS
-* Calculation of scheduling metrics
-* Modular C programming structure
-
----
-
-## 🔮 Future Enhancements
-
-* Add more algorithms:
-
-  * 🔁 Round Robin
-  * ⚡ Shortest Job First (SJF)
-  * 🎯 Priority Scheduling
-* Gantt Chart visualization
-* Full GUI integration
-* Real-time simulation
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome!
-Feel free to fork the repo and submit a pull request.
+| Tab | What It Does |
+|---|---|
+| 🧠 CPU Scheduling | Run any of 7 algorithms with Gantt chart |
+| 💾 Memory | Memory allocation + Page replacement simulation |
+| ⚠️ Deadlock | Banker's Algorithm + Deadlock Detection |
+| 💽 Disk Scheduling | 6 algorithms with seek path visualization |
+| 📊 Compare All | Compare all CPU algorithms on same data |
+| 📚 Learn | Theory section with pros/cons of each algorithm |
 
 ---
 
 ## 📄 License
 
-This project is open-source and free to use for educational purposes.
-
----
-
-## 👨‍💻 Author
-
-**Aksh Upase**
-(Second Year Engineering Student)
-
----
+Open-source for educational purposes.
 
 ⭐ If you found this project useful, consider giving it a star!
