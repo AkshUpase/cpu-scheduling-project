@@ -1,9 +1,9 @@
-"""Disk Scheduling Tab — FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK with seek graph."""
+"""Disk Scheduling Tab — FCFS, SSTF, SCAN, C-SCAN with seek graph."""
 import customtkinter as ctk
 from tkinter import Canvas, messagebox
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from algorithms import disk_fcfs, disk_sstf, disk_scan, disk_cscan, disk_look, disk_clook
+from algorithms import disk_fcfs, disk_sstf, disk_scan, disk_cscan
 
 ACCENT="#00d4aa"; ACCENT2="#7c3aed"; BG="#0d1117"; PANEL="#161b22"
 CARD="#1c2230"; BORDER="#30363d"; TEXT="#e6edf3"; SUBTEXT="#8b949e"
@@ -25,7 +25,7 @@ class DiskTab:
                      text_color=ACCENT).pack(anchor="w", padx=16, pady=(12,4))
         self.algo_var = ctk.StringVar(value="fcfs")
         for label, val in [("FCFS","fcfs"),("SSTF","sstf"),("SCAN (Elevator)","scan"),
-                            ("C-SCAN","cscan"),("LOOK","look"),("C-LOOK","clook")]:
+                            ("C-SCAN","cscan")]:
             ctk.CTkRadioButton(left, text=label, variable=self.algo_var, value=val,
                                font=ctk.CTkFont("Consolas",11), text_color=TEXT,
                                fg_color=ACCENT, hover_color=ACCENT2).pack(anchor="w", padx=20, pady=2)
@@ -92,8 +92,6 @@ class DiskTab:
             "sstf": lambda: disk_sstf(reqs, head),
             "scan": lambda: disk_scan(reqs, head, disk),
             "cscan": lambda: disk_cscan(reqs, head, disk),
-            "look": lambda: disk_look(reqs, head),
-            "clook": lambda: disk_clook(reqs, head),
         }
         path, seek = funcs[algo]()
         self._draw(path, seek, disk, algo.upper())
@@ -156,9 +154,7 @@ class DiskTab:
         for name, func in [("FCFS", lambda: disk_fcfs(reqs, head)),
                             ("SSTF", lambda: disk_sstf(reqs, head)),
                             ("SCAN", lambda: disk_scan(reqs, head, disk)),
-                            ("C-SCAN", lambda: disk_cscan(reqs, head, disk)),
-                            ("LOOK", lambda: disk_look(reqs, head)),
-                            ("C-LOOK", lambda: disk_clook(reqs, head))]:
+                            ("C-SCAN", lambda: disk_cscan(reqs, head, disk))]:
             path, seek = func()
             results[name] = seek
 
