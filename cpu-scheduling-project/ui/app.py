@@ -2,7 +2,7 @@
 OS Simulator — Premium UI with customtkinter
 Main application entry point with tabbed interface.
 """
-import customtkinter as ctk
+import customtkinter as ctk 
 from tabs.cpu_tab import CPUTab
 from tabs.memory_tab import MemoryTab
 from tabs.deadlock_tab import DeadlockTab
@@ -35,7 +35,7 @@ class OSSimulatorApp(ctk.CTk):
         ctk.CTkLabel(header, text="⚙  OS SIMULATOR — ADVANCED EDITION",
                      font=ctk.CTkFont("Consolas", 20, "bold"),
                      text_color=ACCENT).pack(side="left", padx=24, pady=12)
-        ctk.CTkLabel(header, text="by Aksh Upase  •  SE Engineering",
+        ctk.CTkLabel(header, text="by Group-9",
                      font=ctk.CTkFont("Consolas", 11),
                      text_color="#8b949e").pack(side="right", padx=24)
 
