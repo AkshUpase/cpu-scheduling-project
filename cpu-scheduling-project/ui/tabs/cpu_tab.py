@@ -251,7 +251,7 @@ class CPUTab:
         self.state_canvas.pack(fill="x", padx=16, pady=(0, 4))
 
         # RR quantum chart (hidden until RR selected)
-        self.rr_lbl = ctk.CTkLabel(right, text="ROUND ROBIN — Avg WT vs Time Quantum",
+        self.rr_lbl = ctk.CTkLabel(right, text="ROUND ROBIN — Avg WT + Throughput vs Time Quantum",
                                    font=ctk.CTkFont("Consolas", 9, "bold"),
                                    text_color=ACCENT)
         self.rr_canvas = Canvas(right, bg=CARD, height=90,
@@ -345,6 +345,9 @@ class CPUTab:
             q = int(self.q_entry.get()) if algo in ("rr", "mlfq") else 2
         except Exception:
             q = 2
+        if q <= 0:
+            messagebox.showerror("Error", "Quantum must be > 0")
+            return
 
         self._aging_log = []
         if algo == "pri" and self.aging_var.get():
@@ -607,7 +610,7 @@ class CPUTab:
 
     def _draw_rr_chart(self, processes):
         """Bar chart: x = quantum (1–10), y = average waiting time."""
-        data = throughput_vs_quantum(processes)
+        data = [d for d in throughput_vs_quantum(processes) if len(d) >= 3 and d[1] is not None]
         c = self.rr_canvas
         c.delete("all")
         c.update_idletasks()
@@ -619,7 +622,9 @@ class CPUTab:
         max_wt = max(d[1] for d in data) or 1
         bar_w  = (W - 2 * pad_x) / len(data)
 
-        for i, (q, avg_wt, avg_tat) in enumerate(data):
+        for i, row in enumerate(data):
+            q, avg_wt, avg_tat = row[0], row[1], row[2]
+            tput = row[3] if len(row) > 3 else 0
             x0 = pad_x + i * bar_w + bar_w * 0.1
             x1 = pad_x + i * bar_w + bar_w * 0.9
             bh = (avg_wt / max_wt) * (H - 2 * pad_y - 18)
@@ -628,6 +633,8 @@ class CPUTab:
             c.create_rectangle(x0, y0, x1, y1, fill="#60a5fa", outline="")
             c.create_text((x0 + x1) / 2, y0 - 6,
                           text=f"{avg_wt:.1f}", font=("Consolas", 7), fill=TEXT)
+            c.create_text((x0 + x1) / 2, y0 - 14,
+                          text=f"T:{tput:.2f}", font=("Consolas", 6), fill="#4ade80")
             c.create_text((x0 + x1) / 2, H - 8,
                           text=f"q={q}", font=("Consolas", 7), fill=SUBTEXT)
         c.create_text(pad_x - 2, H // 2,
@@ -732,11 +739,12 @@ class CPUTab:
             return
         path = os.path.join(os.path.dirname(__file__), "..", "output", "cpu_results.csv")
         os.makedirs(os.path.dirname(path), exist_ok=True)
+        rt_map = response_times(self._last_procs, self.gantt_data)
         with open(path, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["PID", "Arrival", "Burst", "Waiting", "Turnaround"])
+            w.writerow(["PID", "Arrival", "Burst", "Waiting", "Turnaround", "Response"])
             for r in self.last_result:
-                w.writerow([f"P{r[0]}", r[1], r[2], r[3], r[4]])
+                w.writerow([f"P{r[0]}", r[1], r[2], r[3], r[4], rt_map.get(r[0], 0)])
         messagebox.showinfo("Exported", f"CSV saved to:\n{os.path.abspath(path)}")
 
     def _export_pdf(self):

@@ -52,8 +52,6 @@ TOPICS = {
          "✅ No starvation\n❌ Requests at edges wait longer"),
         ("C-SCAN", "Like SCAN but only services in one direction, jumps back to start.",
          "✅ More uniform wait time\n❌ Empty return sweep wastes time"),
-        ("LOOK", "Like SCAN but only goes as far as last request.", "✅ Efficient\n❌ Slight unfairness"),
-        ("C-LOOK", "Like C-SCAN but only goes to last request.", "✅ Best overall performance\n❌ Complex"),
     ],
 }
 

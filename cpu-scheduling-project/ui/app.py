@@ -35,7 +35,7 @@ class OSSimulatorApp(ctk.CTk):
         ctk.CTkLabel(header, text="⚙  OS SIMULATOR — ADVANCED EDITION",
                      font=ctk.CTkFont("Consolas", 20, "bold"),
                      text_color=ACCENT).pack(side="left", padx=24, pady=12)
-        ctk.CTkLabel(header, text="by Aksh Upase  •  SE Engineering",
+        ctk.CTkLabel(header, text="Group 9",
                      font=ctk.CTkFont("Consolas", 11),
                      text_color="#8b949e").pack(side="right", padx=24)
 

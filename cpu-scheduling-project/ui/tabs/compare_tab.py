@@ -46,6 +46,18 @@ class CompareTab:
         self.analysis = ctk.CTkLabel(main, text="", font=ctk.CTkFont("Consolas", 11),
                                       text_color="#4ade80", wraplength=900)
         self.analysis.pack(fill="x", padx=16, pady=(8, 0))
+        self.score_info = ctk.CTkLabel(
+            main,
+            text="Score = 0.45×WT + 0.30×TAT + 0.15×RT + 0.10×CtxSw  (lower is better)",
+            font=ctk.CTkFont("Consolas", 9), text_color=SUBTEXT
+        )
+        self.score_info.pack(fill="x", padx=16, pady=(2, 0))
+
+        self.fail_info = ctk.CTkLabel(
+            main, text="", font=ctk.CTkFont("Consolas", 9),
+            text_color="#f59e0b", wraplength=900, justify="left"
+        )
+        self.fail_info.pack(fill="x", padx=16, pady=(0, 0))
 
         # ── Three bar charts ──────────────────────────────────────────────────
         charts = ctk.CTkFrame(main, fg_color=BG)
@@ -80,29 +92,40 @@ class CompareTab:
             q = int(self.q_entry.get())
         except Exception:
             n, q = 6, 2
+        if n <= 0:
+            messagebox.showwarning("Invalid Input", "Process count must be > 0.")
+            return
+        if q <= 0:
+            messagebox.showwarning("Invalid Input", "Quantum must be > 0.")
+            return
         procs = generate_random_processes(n)
         results = compare_cpu_algorithms(procs, q)
-        self.last_results = results
+        valid_results = {k: v for k, v in results.items() if not v.get("error")}
+        failed = [k for k, v in results.items() if v.get("error")]
+        self.last_results = valid_results
 
-        if not results:
+        if not valid_results:
+            messagebox.showerror("Comparison Failed", "All algorithm runs failed. Check inputs.")
             return
 
-        best_wt  = min(results.items(), key=lambda x: x[1]['avg_wt'])
-        worst_wt = max(results.items(), key=lambda x: x[1]['avg_wt'])
-        best_tat = min(results.items(), key=lambda x: x[1]['avg_tat'])
-        best_ctx = min(results.items(), key=lambda x: x[1]['context_switches'])
+        best_wt  = min(valid_results.items(), key=lambda x: x[1]['avg_wt'])
+        worst_wt = max(valid_results.items(), key=lambda x: x[1]['avg_wt'])
+        best_tat = min(valid_results.items(), key=lambda x: x[1]['avg_tat'])
+        best_ctx = min(valid_results.items(), key=lambda x: x[1]['context_switches'])
 
         self.analysis.configure(
             text=(f"🏆 Best WT: {best_wt[0]} ({best_wt[1]['avg_wt']:.2f})  |  "
                   f"❌ Worst WT: {worst_wt[0]} ({worst_wt[1]['avg_wt']:.2f})  |  "
                   f"⚡ Lowest TAT: {best_tat[0]} ({best_tat[1]['avg_tat']:.2f})  |  "
                   f"🔄 Fewest Ctx-Sw: {best_ctx[0]} ({best_ctx[1]['context_switches']})"))
+        self.fail_info.configure(
+            text=("⚠ Failed algorithms: " + ", ".join(failed)) if failed else "")
 
-        self._draw_bars(self.wt_canvas,  {k: v['avg_wt']          for k, v in results.items()}, "WT")
-        self._draw_bars(self.tat_canvas, {k: v['avg_tat']          for k, v in results.items()}, "TAT")
-        self._draw_bars(self.ctx_canvas, {k: v['context_switches'] for k, v in results.items()},
+        self._draw_bars(self.wt_canvas,  {k: v['avg_wt']          for k, v in valid_results.items()}, "WT")
+        self._draw_bars(self.tat_canvas, {k: v['avg_tat']          for k, v in valid_results.items()}, "TAT")
+        self._draw_bars(self.ctx_canvas, {k: v['context_switches'] for k, v in valid_results.items()},
                         "Ctx-Sw", lower_is_better=True, integer_vals=True)
-        self._draw_table(results)
+        self._draw_table(valid_results)
 
     def _draw_bars(self, canvas, data, label,
                    lower_is_better=True, integer_vals=False):
@@ -145,28 +168,31 @@ class CompareTab:
             w.destroy()
         hdr = ctk.CTkFrame(self.table_frame, fg_color=PANEL)
         hdr.pack(fill="x", pady=(0, 4))
-        cols = ["Algorithm", "Avg WT", "Avg TAT", "Ctx-Sw", "Throughput", "CPU Util%", "Rating"]
-        widths = [130, 80, 80, 70, 90, 90, 100]
+        cols = ["Algorithm", "Avg WT", "Avg TAT", "Avg RT", "Ctx-Sw", "Throughput", "CPU Util%", "Score", "Rating"]
+        widths = [120, 72, 72, 72, 62, 80, 80, 62, 90]
         for col, w in zip(cols, widths):
             ctk.CTkLabel(hdr, text=col,
                          font=ctk.CTkFont("Consolas", 10, "bold"),
                          text_color=ACCENT, width=w).pack(side="left", padx=2)
 
-        best_key = min(results, key=lambda k: results[k]['avg_wt'])
-        for name, data in sorted(results.items(), key=lambda x: x[1]['avg_wt']):
+        best_key = min(results, key=lambda k: (results[k]['avg_wt'], results[k].get('avg_rt', 0), results[k]['context_switches']))
+        for name, data in sorted(results.items(), key=lambda x: (x[1]['avg_wt'], x[1].get('avg_rt', 0))):
             row = ctk.CTkFrame(self.table_frame, fg_color=CARD)
             row.pack(fill="x", pady=1)
+            score = (0.45 * data['avg_wt'] + 0.30 * data['avg_tat'] + 0.15 * data.get('avg_rt', 0) + 0.10 * data['context_switches'])
             rating = ("🏆 BEST" if name == best_key
-                      else "⭐ Good" if data['avg_wt'] < 5
+                      else "⭐ Good" if score < 8
                       else "⚠️ Slow")
             col = "#4ade80" if name == best_key else SUBTEXT
             row_vals = [
                 name,
                 f"{data['avg_wt']:.2f}",
                 f"{data['avg_tat']:.2f}",
+                f"{data.get('avg_rt', 0):.2f}",
                 str(data.get('context_switches', '–')),
                 str(data.get('throughput', '–')),
                 f"{data.get('cpu_util', 0):.1f}%",
+                f"{score:.2f}",
                 rating,
             ]
             for val, w in zip(row_vals, widths):
@@ -182,15 +208,18 @@ class CompareTab:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["Algorithm", "Avg WT", "Avg TAT", "Context Switches",
-                        "Throughput", "CPU Util%"])
+            w.writerow(["Algorithm", "Avg WT", "Avg TAT", "Avg RT", "Context Switches",
+                        "Throughput", "CPU Util%", "Score"])
             for name, data in self.last_results.items():
+                score = (0.45 * data['avg_wt'] + 0.30 * data['avg_tat'] + 0.15 * data.get('avg_rt', 0) + 0.10 * data['context_switches'])
                 w.writerow([
                     name,
                     f"{data['avg_wt']:.2f}",
                     f"{data['avg_tat']:.2f}",
+                    f"{data.get('avg_rt', 0):.2f}",
                     data.get('context_switches', ''),
                     data.get('throughput', ''),
                     f"{data.get('cpu_util', 0):.1f}",
+                    f"{score:.2f}",
                 ])
         messagebox.showinfo("Exported", f"Saved to {os.path.abspath(path)}")
